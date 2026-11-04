@@ -15,8 +15,8 @@ function env(name: string, fallback = ""): string {
 
 export function loadConfig(overrides: Partial<HubConfig> = {}): HubConfig {
   return {
-    port: Number(env("HUB_PORT", "8787")) || 8787,
-    host: env("HUB_HOST", "127.0.0.1"),
+    port: Number(env("HUB_PORT") || env("PORT", "8787")) || 8787,
+    host: env("HUB_HOST", "0.0.0.0"),
     dataDir: env("DATA_DIR", ".data"),
     metaApiKey: env("META_API_KEY"),
     metaApiBase: env("META_API_BASE", "https://api.meta.ai/v1").replace(/\/$/, ""),

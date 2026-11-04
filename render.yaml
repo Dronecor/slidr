@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: slidr-hub
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HUB_HOST
+        value: 0.0.0.0
+      - key: DATA_DIR
+        value: /data
+      - key: META_API_BASE
+        value: https://api.meta.ai/v1
+      - key: SUPABASE_BUCKET
+        value: decks
+      - key: META_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

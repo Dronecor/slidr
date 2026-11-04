@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/dist
+**/.next
+.git
+.data
+.env
+.env.*
+!.env.example
+.npm-cache
+.shots
+.verify-tmp

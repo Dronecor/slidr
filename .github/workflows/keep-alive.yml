@@ -1,0 +1,15 @@
+name: Keep Alive
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping hub health
+        env:
+          KEEP_ALIVE_URL: ${{ vars.KEEP_ALIVE_URL }}
+        run: |
+          if [ -z "$KEEP_ALIVE_URL" ]; then echo "Set repo variable KEEP_ALIVE_URL to https://<your-hub>/health"; exit 0; fi
+          curl -s -f "$KEEP_ALIVE_URL" || echo "ping failed (service may be waking)"
