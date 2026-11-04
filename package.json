@@ -1,0 +1,1 @@
+{"name":"slidr","private":true,"version":"0.1.0","workspaces":["apps/web","packages/shared"],"scripts":{"dev:web":"npm --workspace apps/web run dev","build:web":"npm --workspace apps/web run build","typecheck":"npm --workspace packages/shared run typecheck && npm --workspace apps/web run typecheck"}}

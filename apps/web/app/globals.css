@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #ffffff;
+  color: #1a1d21;
+}
+
+@layer base {
+  button:not(:disabled),
+  select:not(:disabled),
+  input[type="file"],
+  label:has(> input[type="file"]:not(:disabled)) {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 3px solid #f5a623;
+    outline-offset: 2px;
+  }
+}
+
+/* ---------- slidr identity: dots, hashes, chunky ink ---------- */
+
+.bg-dots {
+  background-image: radial-gradient(rgba(26, 29, 33, 0.28) 1.5px, transparent 1.6px);
+  background-size: 18px 18px;
+}
+
+.bg-dots-faint {
+  background-image: radial-gradient(rgba(26, 29, 33, 0.12) 1.2px, transparent 1.3px);
+  background-size: 16px 16px;
+}
+
+.bg-dots-light {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.3) 1.5px, transparent 1.6px);
+  background-size: 16px 16px;
+}
+
+.bg-hash {
+  background-image: repeating-linear-gradient(-45deg, #1a1d21 0 2px, transparent 2px 10px);
+}
+
+.bg-hash-faint {
+  background-image: repeating-linear-gradient(-45deg, rgba(26, 29, 33, 0.25) 0 2px, transparent 2px 9px);
+}
+
+@layer components {
+  .card-pop {
+    @apply border-2 border-ink bg-white shadow-hard;
+  }
+  .panel-pop {
+    @apply border-2 border-ink bg-white;
+  }
+  .btn-ink {
+    @apply border-2 border-ink bg-ink px-4 py-2 text-sm font-bold text-white shadow-hard-sm transition-all hover:-translate-y-0.5 hover:shadow-hard active:translate-x-[2px] active:translate-y-[2px] active:shadow-none;
+  }
+  .btn-paper {
+    @apply border-2 border-ink bg-white px-3 py-1.5 text-sm font-bold shadow-hard-sm transition-all hover:-translate-y-0.5 hover:bg-amber-50 hover:shadow-hard active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0 disabled:hover:bg-white;
+  }
+  .btn-spot {
+    @apply border-2 border-ink bg-spot px-4 py-2 text-sm font-bold text-ink shadow-hard-sm transition-all hover:-translate-y-0.5 hover:shadow-hard hover:brightness-105 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none;
+  }
+  .chip-ink {
+    @apply inline-block border-2 border-ink bg-ink px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-white;
+  }
+  .chip-paper {
+    @apply inline-block border-2 border-ink bg-white px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider;
+  }
+  .input-pop {
+    @apply w-full border-2 border-ink bg-white px-2 py-1.5 text-sm outline-none focus:bg-amber-50;
+  }
+  .tab-strip {
+    @apply flex items-center gap-1 border-2 border-ink bg-white p-1 shadow-hard-sm;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-ink, .btn-paper, .btn-spot {
+    transition: none;
+  }
+}
+
+/* ---------- Audience stage ---------- */
+
+/* Audience window: hide cursor when presenting */
+.audience-cursor-none, .audience-cursor-none * {
+  cursor: none !important;
+}
+
+/* Eased zoom transform for the slide stage */
+.slide-stage {
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-stage {
+    transition: none;
+  }
+}
+
+/* Highlight glow */
+.fx-highlight {
+  border-radius: 6px;
+}
+
+/* Pulsing live dot */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.live-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
