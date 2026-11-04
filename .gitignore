@@ -1,21 +1,15 @@
-# Deps & build output
 node_modules/
-apps/web/.next/
-apps/web/out/
-packages/shared/dist/
-*.tsbuildinfo
-
-# Env (never commit keys)
+.npm-cache/
+dist/
+.data/
 .env
 .env.local
 .env*.local
-
-# Scratch / verification artifacts
+*.log
+*.tsbuildinfo
+apps/web/.next/
+apps/web/out/
 .verify-tmp/
 .shots/
-.npm-cache/
-
-# OS & editor
 .DS_Store
 Thumbs.db
-*.log

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { CmdName, SessionState } from "@slidr/shared";
+import type { CmdName, SessionState } from "@stage-pilot/shared";
 import { PilotSocket } from "../../../lib/ws";
 
 const CMDS: CmdName[] = ["next", "back", "goto", "undo", "pause", "resume", "setMode", "clearEffect", "hold"];
@@ -41,7 +41,7 @@ export default function CmdTestPage() {
     <main className="min-h-screen bg-dots-faint px-6 py-10">
       <div className="mx-auto max-w-2xl">
       <h1 className="text-xl font-black">Hub cmd test</h1>
-      <p className="mt-1 font-mono text-xs text-neutral-500">Dev B: point the hub at ws://localhost:3100/ws and click connect.</p>
+      <p className="mt-1 font-mono text-xs text-neutral-500">Dev B: the hub listens on ws://localhost:8787 — click connect.</p>
       <div className="mt-4 flex gap-2">
         <input value={sessionId} onChange={(e) => setSessionId(e.target.value)} className="input-pop font-mono" />
         <button onClick={connect} className="btn-ink shrink-0">Connect</button>

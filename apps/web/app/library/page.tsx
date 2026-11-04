@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Deck } from "@slidr/shared";
+import type { Deck } from "@stage-pilot/shared";
 import { Logo } from "../../components/Logo";
 import { api, useMock } from "../../lib/api";
 import { listMockDecks, saveMockDecks } from "../../lib/mock";

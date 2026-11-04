@@ -1,24 +1,55 @@
 "use client";
 
 import {
-  PROTOCOL_V,
+  CONTRACT_VERSION,
   SessionStateSchema,
   type CmdName,
-  type DecisionPayload,
   type ErrorPayload,
-  type HealthPayload,
   type SessionState,
   type TranscriptPayload,
-  type WsType,
-} from "@slidr/shared";
+} from "@stage-pilot/shared";
 
 export type ConnStatus = "connecting" | "open" | "reconnecting" | "closed";
+
+/** WS message type is a free string on the wire; known values are listed here. */
+export type WsType =
+  | "join" | "audio.start" | "audio.stop" | "cmd" | "suggestion.accept"
+  | "suggestion.dismiss" | "state" | "transcript" | "decision" | "health" | "error";
+
+/**
+ * Decision event, tolerant of both shapes: the mock/fake hub sends `target`,
+ * the real hub's decision log uses `targetId`. Confidence may be absent when
+ * the action is derived from hub state instead of a decision frame.
+ */
+export interface DecisionEvent {
+  action: string;
+  target?: string | null;
+  targetId?: string | null;
+  confidence: number | null;
+  reason: string;
+  path: string;
+  latencyMs: number;
+  applied: boolean;
+}
+
+/** Health event, tolerant of the WS frame shape and the HTTP /health shape. */
+export interface HealthEvent {
+  asrStatus?: string;
+  asr?: string;
+  modelLatencyP50Ms?: number | null;
+  p50?: number;
+  modelLatencyP95Ms?: number | null;
+  p95?: number;
+  fallbackInUse?: boolean;
+  fallback?: boolean;
+  decisions?: number;
+}
 
 export interface HubClient {
   onState(cb: (s: SessionState) => void): void;
   onTranscript(cb: (t: TranscriptPayload) => void): void;
-  onDecision(cb: (d: DecisionPayload) => void): void;
-  onHealth(cb: (h: HealthPayload) => void): void;
+  onDecision(cb: (d: DecisionEvent) => void): void;
+  onHealth(cb: (h: HealthEvent) => void): void;
   onErrorMsg(cb: (e: ErrorPayload) => void): void;
   onStatus(cb: (s: ConnStatus) => void): void;
   sendCmd(name: CmdName, args?: Record<string, unknown>): void;
@@ -33,7 +64,7 @@ export interface HubClient {
 }
 
 const WS_URL = () =>
-  process.env.NEXT_PUBLIC_HUB_WS || "ws://localhost:3100/ws";
+  process.env.NEXT_PUBLIC_HUB_WS || "ws://localhost:8787";
 
 export class PilotSocket implements HubClient {
   private ws: WebSocket | null = null;
@@ -46,8 +77,8 @@ export class PilotSocket implements HubClient {
 
   private stateCbs: ((s: SessionState) => void)[] = [];
   private transcriptCbs: ((t: TranscriptPayload) => void)[] = [];
-  private decisionCbs: ((d: DecisionPayload) => void)[] = [];
-  private healthCbs: ((h: HealthPayload) => void)[] = [];
+  private decisionCbs: ((d: DecisionEvent) => void)[] = [];
+  private healthCbs: ((h: HealthEvent) => void)[] = [];
   private errorCbs: ((e: ErrorPayload) => void)[] = [];
   private statusCbs: ((s: ConnStatus) => void)[] = [];
 
@@ -58,8 +89,8 @@ export class PilotSocket implements HubClient {
 
   onState(cb: (s: SessionState) => void) { this.stateCbs.push(cb); }
   onTranscript(cb: (t: TranscriptPayload) => void) { this.transcriptCbs.push(cb); }
-  onDecision(cb: (d: DecisionPayload) => void) { this.decisionCbs.push(cb); }
-  onHealth(cb: (h: HealthPayload) => void) { this.healthCbs.push(cb); }
+  onDecision(cb: (d: DecisionEvent) => void) { this.decisionCbs.push(cb); }
+  onHealth(cb: (h: HealthEvent) => void) { this.healthCbs.push(cb); }
   onErrorMsg(cb: (e: ErrorPayload) => void) { this.errorCbs.push(cb); }
   onStatus(cb: (s: ConnStatus) => void) { this.statusCbs.push(cb); }
 
@@ -68,8 +99,8 @@ export class PilotSocket implements HubClient {
   connect() {
     this.closed = false;
     this.emitStatus(this.backoff > 500 ? "reconnecting" : "connecting");
-    const url = `${WS_URL()}?session=${encodeURIComponent(this.sessionId)}&role=${this.role}`;
-    const ws = new WebSocket(url);
+    // Session and role travel in the join frame; the hub ignores URL params.
+    const ws = new WebSocket(WS_URL());
     this.ws = ws;
     ws.binaryType = "arraybuffer";
     ws.onopen = () => {
@@ -80,8 +111,8 @@ export class PilotSocket implements HubClient {
     ws.onmessage = (ev) => {
       if (typeof ev.data !== "string") return;
       try {
-        const msg = JSON.parse(ev.data) as { v: number; type: WsType; payload: Record<string, unknown> };
-        if (msg.v !== PROTOCOL_V) return;
+        const msg = JSON.parse(ev.data) as { v: number; type: string; payload: Record<string, unknown> };
+        if (msg.v !== CONTRACT_VERSION) return;
         switch (msg.type) {
           case "state": {
             const parsed = SessionStateSchema.safeParse(msg.payload);
@@ -97,10 +128,10 @@ export class PilotSocket implements HubClient {
             this.transcriptCbs.forEach((cb) => cb(msg.payload as unknown as TranscriptPayload));
             break;
           case "decision":
-            this.decisionCbs.forEach((cb) => cb(msg.payload as unknown as DecisionPayload));
+            this.decisionCbs.forEach((cb) => cb(msg.payload as unknown as DecisionEvent));
             break;
           case "health":
-            this.healthCbs.forEach((cb) => cb(msg.payload as unknown as HealthPayload));
+            this.healthCbs.forEach((cb) => cb(msg.payload as unknown as HealthEvent));
             break;
           case "error":
             this.errorCbs.forEach((cb) => cb(msg.payload as unknown as ErrorPayload));
@@ -129,7 +160,7 @@ export class PilotSocket implements HubClient {
   private send(type: WsType, payload: Record<string, unknown>) {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
     this.seq += 1;
-    this.ws.send(JSON.stringify({ v: PROTOCOL_V, type, seq: this.seq, payload }));
+    this.ws.send(JSON.stringify({ v: CONTRACT_VERSION, type, seq: this.seq, payload }));
   }
 
   sendCmd(name: CmdName, args: Record<string, unknown> = {}) {

@@ -3,14 +3,12 @@
 import type {
   CmdName,
   Deck,
-  DecisionPayload,
   Effect,
   ErrorPayload,
-  HealthPayload,
   SessionState,
   TranscriptPayload,
-} from "@slidr/shared";
-import type { HubClient } from "./ws";
+} from "@stage-pilot/shared";
+import type { DecisionEvent, HealthEvent, HubClient } from "./ws";
 
 function svg(slideNo: number, title: string, body: string, tint: string): string {
   const svgText =
@@ -125,8 +123,8 @@ export class FakeHub implements HubClient {
 
   private stateCbs: ((s: SessionState) => void)[] = [];
   private transcriptCbs: ((t: TranscriptPayload) => void)[] = [];
-  private decisionCbs: ((d: DecisionPayload) => void)[] = [];
-  private healthCbs: ((h: HealthPayload) => void)[] = [];
+  private decisionCbs: ((d: DecisionEvent) => void)[] = [];
+  private healthCbs: ((h: HealthEvent) => void)[] = [];
   private errorCbs: ((e: ErrorPayload) => void)[] = [];
   private statusCbs: ((s: "connecting" | "open" | "reconnecting" | "closed") => void)[] = [];
 
@@ -144,8 +142,8 @@ export class FakeHub implements HubClient {
 
   onState(cb: (s: SessionState) => void) { this.stateCbs.push(cb); }
   onTranscript(cb: (t: TranscriptPayload) => void) { this.transcriptCbs.push(cb); }
-  onDecision(cb: (d: DecisionPayload) => void) { this.decisionCbs.push(cb); }
-  onHealth(cb: (h: HealthPayload) => void) { this.healthCbs.push(cb); }
+  onDecision(cb: (d: DecisionEvent) => void) { this.decisionCbs.push(cb); }
+  onHealth(cb: (h: HealthEvent) => void) { this.healthCbs.push(cb); }
   onErrorMsg(cb: (e: ErrorPayload) => void) { this.errorCbs.push(cb); }
   onStatus(cb: (s: "connecting" | "open" | "reconnecting" | "closed") => void) { this.statusCbs.push(cb); }
 
@@ -176,7 +174,7 @@ export class FakeHub implements HubClient {
     this.stateCbs.forEach((cb) => cb(snap));
   }
 
-  private emitDecision(d: DecisionPayload) {
+  private emitDecision(d: DecisionEvent) {
     this.decisionCbs.forEach((cb) => cb(d));
   }
 
@@ -231,7 +229,7 @@ export class FakeHub implements HubClient {
           ? this.state.effects.filter((e) => e.id !== args.effectId)
           : [];
         break;
-      case "hold": this.state.holdForQuestions = args.on !== false; break;
+      case "hold": this.state.holdForQuestions = Boolean(args.value ?? args.on ?? true); break;
     }
     this.emitState();
   }

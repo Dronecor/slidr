@@ -1,6 +1,6 @@
 "use client";
 
-import type { Deck, DeckElement, KeyPoint } from "@slidr/shared";
+import type { Deck, KeyPoint, SlideElement } from "@stage-pilot/shared";
 
 /**
  * Offline deck pipeline: render a PDF entirely in the browser (no hub),
@@ -138,7 +138,7 @@ export async function ingestPdfOffline(
     } catch { /* text is a bonus; the image is the deck */ }
 
     // Extract link annotations as clickable elements.
-    const elements: DeckElement[] = [];
+    const elements: SlideElement[] = [];
     try {
       const annots = await page.getAnnotations();
       let n = 0;

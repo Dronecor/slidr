@@ -1,0 +1,1 @@
+{"name":"@stage-pilot/replay","version":"0.1.0","private":true,"type":"module","main":"dist/index.js","bin":{"replay":"dist/index.js"},"scripts":{"build":"tsc -p tsconfig.json"},"dependencies":{"@stage-pilot/shared":"0.1.0"}}

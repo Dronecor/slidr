@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Box, DeckElement, Effect, Slide } from "@slidr/shared";
+import type { Box, Effect, Slide, SlideElement } from "@stage-pilot/shared";
 
 function live(effects: Effect[]): Effect[] {
   const now = Date.now();
@@ -64,7 +64,7 @@ export function SlideView(props: {
 
   const pct = (n: number) => `${n * 100}%`;
 
-  const onPointerDown = (ev: React.PointerEvent, el: DeckElement) => {
+  const onPointerDown = (ev: React.PointerEvent, el: SlideElement) => {
     if (!editable) return;
     ev.stopPropagation();
     props.onSelect?.(el.id);

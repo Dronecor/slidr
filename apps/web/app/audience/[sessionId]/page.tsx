@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Deck, SessionState } from "@slidr/shared";
+import type { Deck, SessionState } from "@stage-pilot/shared";
 import { SlideView } from "../../../components/SlideView";
 import { api, useMock } from "../../../lib/api";
 import { FakeHub, getMockDeck } from "../../../lib/mock";

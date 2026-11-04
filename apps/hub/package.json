@@ -1,0 +1,1 @@
+{"name":"@stage-pilot/hub","version":"0.1.0","private":true,"type":"module","main":"dist/index.js","scripts":{"build":"tsc -p tsconfig.json","start":"node dist/index.js"},"dependencies":{"@stage-pilot/shared":"0.1.0","ws":"^8.18.0","zod":"^3.24.0"}}

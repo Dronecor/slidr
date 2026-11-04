@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-export const PROTOCOL_V = 1;
+export const CONTRACT_VERSION = 1;
 
-// ---------- Geometry ----------
 export const BoxSchema = z.object({
   x: z.number().min(0).max(1),
   y: z.number().min(0).max(1),
@@ -11,14 +10,8 @@ export const BoxSchema = z.object({
 });
 export type Box = z.infer<typeof BoxSchema>;
 
-// ---------- Deck ----------
 export const ElementTypeSchema = z.enum([
-  "figure",
-  "chart",
-  "image",
-  "link",
-  "text",
-  "chart_part",
+  "figure", "chart", "image", "link", "text", "chart_part",
 ]);
 export type ElementType = z.infer<typeof ElementTypeSchema>;
 
@@ -26,31 +19,31 @@ export const ElementSourceSchema = z.enum(["pptx", "pdf", "model", "user"]);
 export type ElementSource = z.infer<typeof ElementSourceSchema>;
 
 export const ElementSchema = z.object({
-  id: z.string(),
+  id: z.string().min(1),
   type: ElementTypeSchema,
-  label: z.string(),
+  label: z.string().min(1),
   box: BoxSchema,
   aliases: z.array(z.string()).default([]),
   url: z.string().nullable().default(null),
   parentId: z.string().nullable().default(null),
   source: ElementSourceSchema,
 });
-export type DeckElement = z.infer<typeof ElementSchema>;
+export type SlideElement = z.infer<typeof ElementSchema>;
 
 export const KeyPointSchema = z.object({
-  id: z.string(),
-  text: z.string(),
-  weight: z.number().default(1),
+  id: z.string().min(1),
+  text: z.string().min(1),
+  weight: z.number().positive().default(1),
 });
 export type KeyPoint = z.infer<typeof KeyPointSchema>;
 
 export const SlideSchema = z.object({
-  id: z.string(),
-  index: z.number(),
-  imageUrl: z.string(),
-  width: z.number().default(1920),
-  height: z.number().default(1080),
-  title: z.string().default(""),
+  id: z.string().min(1),
+  index: z.number().int().min(0),
+  imageUrl: z.string().min(1),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  title: z.string(),
   notes: z.string().default(""),
   summary: z.string().default(""),
   keyPoints: z.array(KeyPointSchema).default([]),
@@ -60,42 +53,30 @@ export const SlideSchema = z.object({
 });
 export type Slide = z.infer<typeof SlideSchema>;
 
-export const DeckStatusSchema = z.enum([
-  "processing",
-  "review",
-  "ready",
-  "failed",
-]);
+export const DeckStatusSchema = z.enum(["processing", "review", "ready", "failed"]);
 export type DeckStatus = z.infer<typeof DeckStatusSchema>;
 
 export const DeckSchema = z.object({
-  id: z.string(),
-  title: z.string(),
+  id: z.string().min(1),
+  title: z.string().min(1),
   status: DeckStatusSchema,
   slides: z.array(SlideSchema).default([]),
 });
 export type Deck = z.infer<typeof DeckSchema>;
 
 export const IngestStepSchema = z.enum([
-  "upload",
-  "convert",
-  "extract",
-  "vision",
-  "narrative",
-  "index",
+  "upload", "convert", "render", "extract", "vision", "narrative", "index",
 ]);
 export type IngestStep = z.infer<typeof IngestStepSchema>;
 
 export const IngestProgressSchema = z.object({
-  deckId: z.string(),
-  step: IngestStepSchema,
-  done: z.number(),
-  total: z.number(),
-  message: z.string().default(""),
+  deckId: z.string().min(1),
+  status: DeckStatusSchema,
+  steps: z.record(IngestStepSchema, z.enum(["pending", "running", "done", "failed", "skipped"])),
+  error: z.string().nullable().default(null),
 });
 export type IngestProgress = z.infer<typeof IngestProgressSchema>;
 
-// ---------- Session state ----------
 export const ModeSchema = z.enum(["auto", "assist", "manual"]);
 export type Mode = z.infer<typeof ModeSchema>;
 
@@ -103,107 +84,36 @@ export const EffectKindSchema = z.enum(["highlight", "zoom", "link"]);
 export type EffectKind = z.infer<typeof EffectKindSchema>;
 
 export const EffectSchema = z.object({
-  id: z.string(),
+  id: z.string().min(1),
   kind: EffectKindSchema,
-  elementId: z.string(),
-  startedAt: z.number(),
-  expiresAt: z.number(),
+  elementId: z.string().min(1),
+  startedAt: z.number().int(),
+  expiresAt: z.number().int(),
 });
 export type Effect = z.infer<typeof EffectSchema>;
 
 export const PendingActionSchema = z.object({
-  id: z.string(),
-  action: z.string(),
+  id: z.string().min(1),
+  action: z.enum(["highlight", "zoom", "open_link", "next"]),
   targetId: z.string().nullable(),
-  confidence: z.number(),
+  confidence: z.number().min(0).max(1),
   reason: z.string(),
-});
+}).nullable();
 export type PendingAction = z.infer<typeof PendingActionSchema>;
 
 export const SessionStateSchema = z.object({
-  sessionId: z.string(),
-  deckId: z.string(),
-  slideIndex: z.number(),
+  sessionId: z.string().min(1),
+  deckId: z.string().min(1),
+  slideIndex: z.number().int().min(0),
   mode: ModeSchema,
   paused: z.boolean(),
   holdForQuestions: z.boolean(),
   effects: z.array(EffectSchema).default([]),
-  pending: PendingActionSchema.nullable().default(null),
-  stateVersion: z.number(),
+  pending: PendingActionSchema.default(null),
+  stateVersion: z.number().int().min(0),
 });
 export type SessionState = z.infer<typeof SessionStateSchema>;
 
-// ---------- WebSocket envelope ----------
-export const WsTypeSchema = z.enum([
-  "join",
-  "audio.start",
-  "audio.stop",
-  "cmd",
-  "suggestion.accept",
-  "suggestion.dismiss",
-  "state",
-  "transcript",
-  "decision",
-  "health",
-  "error",
-]);
-export type WsType = z.infer<typeof WsTypeSchema>;
-
-export const WsEnvelopeSchema = z.object({
-  v: z.number(),
-  type: WsTypeSchema,
-  seq: z.number(),
-  payload: z.record(z.any()).default({}),
-});
-export type WsEnvelope = z.infer<typeof WsEnvelopeSchema>;
-
-export const CmdNameSchema = z.enum([
-  "next",
-  "back",
-  "goto",
-  "undo",
-  "pause",
-  "resume",
-  "setMode",
-  "clearEffect",
-  "hold",
-]);
-export type CmdName = z.infer<typeof CmdNameSchema>;
-
-export const TranscriptPayloadSchema = z.object({
-  text: z.string(),
-  final: z.boolean(),
-  ts: z.number(),
-});
-export type TranscriptPayload = z.infer<typeof TranscriptPayloadSchema>;
-
-export const DecisionPayloadSchema = z.object({
-  action: z.string(),
-  target: z.string().nullable().default(null),
-  confidence: z.number(),
-  reason: z.string(),
-  path: z.enum(["fast", "semantic", "fusion"]),
-  latencyMs: z.number(),
-  applied: z.boolean(),
-});
-export type DecisionPayload = z.infer<typeof DecisionPayloadSchema>;
-
-export const HealthPayloadSchema = z.object({
-  asr: z.string().default("unknown"),
-  p50: z.number().default(0),
-  p95: z.number().default(0),
-  fallback: z.boolean().default(false),
-});
-export type HealthPayload = z.infer<typeof HealthPayloadSchema>;
-
-export const ErrorPayloadSchema = z.object({
-  code: z.string(),
-  message: z.string(),
-  recoverable: z.boolean().default(true),
-});
-export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
-
-// ---------- Spark decision output ----------
 export const SparkDecisionSchema = z.object({
   action: z.enum(["none", "highlight", "zoom", "open_link", "next"]),
   targetId: z.string().nullable(),
@@ -213,10 +123,75 @@ export const SparkDecisionSchema = z.object({
 });
 export type SparkDecision = z.infer<typeof SparkDecisionSchema>;
 
-// ---------- Late-feature interfaces (documented as types) ----------
-export interface LinkOpener {
-  open(url: string): Promise<{ shown: boolean }>;
+export const DecisionLogSchema = z.object({
+  ts: z.number().int(),
+  sessionId: z.string(),
+  action: z.string(),
+  targetId: z.string().nullable(),
+  confidence: z.number(),
+  reason: z.string(),
+  path: z.enum(["fast", "semantic", "fusion", "manual"]),
+  latencyMs: z.number().min(0),
+  applied: z.boolean(),
+});
+export type DecisionLog = z.infer<typeof DecisionLogSchema>;
+
+export const WsEnvelopeSchema = z.object({
+  v: z.literal(CONTRACT_VERSION),
+  type: z.string().min(1),
+  seq: z.number().int().min(0),
+  payload: z.record(z.unknown()),
+});
+export type WsEnvelope = z.infer<typeof WsEnvelopeSchema>;
+
+export const JoinPayloadSchema = z.object({
+  sessionId: z.string().min(1),
+  role: z.enum(["audience", "presenter"]),
+});
+export type JoinPayload = z.infer<typeof JoinPayloadSchema>;
+
+export const CmdNameSchema = z.enum([
+  "next", "back", "goto", "undo", "pause", "resume", "setMode", "clearEffect", "hold",
+]);
+export type CmdName = z.infer<typeof CmdNameSchema>;
+
+export const CmdPayloadSchema = z.object({
+  name: CmdNameSchema,
+  args: z.record(z.unknown()).optional().default({}),
+});
+export type CmdPayload = z.infer<typeof CmdPayloadSchema>;
+
+export const TranscriptPayloadSchema = z.object({
+  text: z.string(),
+  final: z.boolean(),
+  ts: z.number().int(),
+});
+export type TranscriptPayload = z.infer<typeof TranscriptPayloadSchema>;
+
+export const HealthPayloadSchema = z.object({
+  asrStatus: z.enum(["connected", "disconnected", "fallback", "unknown"]),
+  modelLatencyP50Ms: z.number().nullable(),
+  modelLatencyP95Ms: z.number().nullable(),
+  fallbackInUse: z.boolean(),
+});
+export type HealthPayload = z.infer<typeof HealthPayloadSchema>;
+
+export const ErrorPayloadSchema = z.object({
+  code: z.string().min(1),
+  message: z.string(),
+  recoverable: z.boolean(),
+});
+export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
+
+export function envelope(type: string, seq: number, payload: Record<string, unknown>): WsEnvelope {
+  return { v: CONTRACT_VERSION, type, seq, payload };
 }
-export interface ImageTargeter {
-  locate(slideId: string, phrase: string): Promise<Box | null>;
+
+/** Validate a Spark decision; unknown targetId or bad shape returns null (treated as none). */
+export function parseSparkDecision(raw: unknown, validTargetIds: Set<string>): SparkDecision | null {
+  const parsed = SparkDecisionSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const d = parsed.data;
+  if (d.targetId !== null && !validTargetIds.has(d.targetId)) return null;
+  return d;
 }

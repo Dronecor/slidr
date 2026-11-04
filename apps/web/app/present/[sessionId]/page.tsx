@@ -3,23 +3,49 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   Deck,
-  DecisionPayload,
-  HealthPayload,
   Mode,
   SessionState,
   TranscriptPayload,
-} from "@slidr/shared";
+} from "@stage-pilot/shared";
 import { SlideView } from "../../../components/SlideView";
 import { api, useMock } from "../../../lib/api";
 import { FakeHub, getMockDeck } from "../../../lib/mock";
 import { MicAudioSource, type AudioDevice } from "../../../lib/audio";
 import { hydrateDeck } from "../../../lib/offline";
 import { getScreens, openAudienceWindow, placeDisplay, readCachedDeck, type ScreenInfo } from "../../../lib/stage";
-import { PilotSocket, type ConnStatus, type HubClient } from "../../../lib/ws";
+import { PilotSocket, type ConnStatus, type DecisionEvent, type HealthEvent, type HubClient } from "../../../lib/ws";
 
 function fmtTime(ms: number): string {
   const s = Math.floor(ms / 1000);
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The hub broadcasts state but no per-decision frames, so the Last action
+ * panel derives the visible action from consecutive states (mock mode sends
+ * real decisions and skips this).
+ */
+function deriveDecision(prev: SessionState, cur: SessionState): DecisionEvent | null {
+  const base = {
+    confidence: null,
+    reason: "Observed from hub state (the hub sends no decision frames)",
+    path: "hub",
+    latencyMs: 0,
+    applied: true,
+  } as const;
+  if (cur.slideIndex !== prev.slideIndex) {
+    return { action: cur.slideIndex > prev.slideIndex ? "next" : "back", targetId: null, ...base };
+  }
+  const before = new Set(prev.effects.map((e) => e.id));
+  const added = cur.effects.find((e) => !before.has(e.id));
+  if (added) {
+    return {
+      action: added.kind === "link" ? "open_link" : added.kind,
+      targetId: added.elementId,
+      ...base,
+    };
+  }
+  return null;
 }
 
 export default function PresenterPage({ params }: { params: { sessionId: string } }) {
@@ -30,8 +56,9 @@ export default function PresenterPage({ params }: { params: { sessionId: string 
   const [status, setStatus] = useState<ConnStatus>("connecting");
   const [transcripts, setTranscripts] = useState<TranscriptPayload[]>([]);
   const [interim, setInterim] = useState("");
-  const [lastDecision, setLastDecision] = useState<DecisionPayload | null>(null);
-  const [health, setHealth] = useState<HealthPayload | null>(null);
+  const [lastDecision, setLastDecision] = useState<DecisionEvent | null>(null);
+  const [health, setHealth] = useState<HealthEvent | null>(null);
+  const [hubError, setHubError] = useState<{ code: string; message: string } | null>(null);
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [micOn, setMicOn] = useState(false);
@@ -76,7 +103,14 @@ export default function PresenterPage({ params }: { params: { sessionId: string 
       ? new FakeHub(sessionId, deck as Deck, "presenter")
       : new PilotSocket(sessionId, "presenter");
     clientRef.current = client;
-    client.onState((s) => setState(s));
+    let prev: SessionState | null = null;
+    client.onState((s) => {
+      const derived = !mock && prev ? deriveDecision(prev, s) : null;
+      prev = s;
+      setState(s);
+      setHubError(null);
+      if (derived) setLastDecision(derived);
+    });
     client.onStatus((s) => setStatus(s));
     client.onTranscript((t) => {
       if (t.final) {
@@ -86,6 +120,7 @@ export default function PresenterPage({ params }: { params: { sessionId: string 
     });
     client.onDecision((d) => setLastDecision(d));
     client.onHealth((h) => setHealth(h));
+    client.onErrorMsg((e) => setHubError({ code: e.code, message: e.message }));
     client.connect();
     return () => { client.disconnect(); clientRef.current = null; };
   }, [sessionId, mock, deck]);
@@ -99,6 +134,29 @@ export default function PresenterPage({ params }: { params: { sessionId: string 
     bc.postMessage({ kind: "state", state });
     bc.close();
   }, [mock, sessionId, state]);
+
+  // Real hub: it exposes latency stats over HTTP /health (no WS health frame).
+  useEffect(() => {
+    if (mock) return;
+    let stop = false;
+    const poll = async () => {
+      try {
+        const h = await api.health();
+        if (!stop) {
+          setHealth({
+            asrStatus: "unknown",
+            modelLatencyP50Ms: h.p50 ?? null,
+            modelLatencyP95Ms: h.p95 ?? null,
+            fallbackInUse: false,
+            decisions: h.decisions,
+          });
+        }
+      } catch { /* hub down: keep the last reading */ }
+    };
+    void poll();
+    const t = setInterval(poll, 5000);
+    return () => { stop = true; clearInterval(t); };
+  }, [mock]);
 
   // Mock: answer late audience windows asking for the current state.
   useEffect(() => {
@@ -281,6 +339,11 @@ export default function PresenterPage({ params }: { params: { sessionId: string 
       {state?.holdForQuestions && (
         <p className="mt-4 border-2 border-ink bg-sky-100 p-3 text-sm font-medium">
           Holding for questions — auto-advance paused. Press Resume to continue.
+        </p>
+      )}
+      {hubError && (
+        <p className="mt-4 border-2 border-ink bg-red-100 p-3 text-sm font-medium">
+          Hub error {hubError.code}: {hubError.message}
         </p>
       )}
 
@@ -475,10 +538,10 @@ export default function PresenterPage({ params }: { params: { sessionId: string 
             <h2 className="text-sm font-black">Last action</h2>
             {lastDecision ? (
               <div className="mt-2 text-sm">
-                <p><strong>{lastDecision.action}</strong> → {lastDecision.target ?? "—"}</p>
+                <p><strong>{lastDecision.action}</strong> → {lastDecision.target ?? lastDecision.targetId ?? "—"}</p>
                 <p className="text-neutral-600">{lastDecision.reason}</p>
                 <p className="mt-1 font-mono text-[11px] text-neutral-500">
-                  conf {lastDecision.confidence.toFixed(2)} · {lastDecision.path} · {lastDecision.latencyMs} ms · {lastDecision.applied ? "applied" : "ignored"}
+                  conf {lastDecision.confidence == null ? "—" : lastDecision.confidence.toFixed(2)} · {lastDecision.path} · {lastDecision.latencyMs} ms · {lastDecision.applied ? "applied" : "ignored"}
                 </p>
               </div>
             ) : (
@@ -486,7 +549,7 @@ export default function PresenterPage({ params }: { params: { sessionId: string 
             )}
             {health && (
               <p className="mt-2 border-t border-neutral-200 pt-2 font-mono text-[11px] text-neutral-500">
-                asr {health.asr} · p50 {health.p50} ms · p95 {health.p95} ms{health.fallback ? " · FALLBACK" : ""}
+                asr {health.asrStatus ?? health.asr ?? "?"} · p50 {health.modelLatencyP50Ms ?? health.p50 ?? "?"} ms · p95 {health.modelLatencyP95Ms ?? health.p95 ?? "?"} ms{(health.fallbackInUse ?? health.fallback) ? " · FALLBACK" : ""}{health.decisions != null ? ` · ${health.decisions} decisions` : ""}
               </p>
             )}
           </section>

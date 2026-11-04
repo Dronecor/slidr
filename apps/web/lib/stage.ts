@@ -1,6 +1,6 @@
 "use client";
 
-import type { Deck } from "@slidr/shared";
+import type { Deck } from "@stage-pilot/shared";
 
 const CACHE = "slidr-decks-v1";
 const DECK_KEY = (id: string) => `slidr.deck.${id}`;

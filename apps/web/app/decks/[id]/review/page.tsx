@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import type { Box, Deck, DeckElement, ElementType } from "@slidr/shared";
+import type { Box, Deck, ElementType, SlideElement } from "@stage-pilot/shared";
 import { SlideView } from "../../../../components/SlideView";
 import { api, useMock } from "../../../../lib/api";
 import { dehydrateDeck, hydrateDeck } from "../../../../lib/offline";
@@ -43,7 +43,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   const slide = deck?.slides[slideIdx] ?? null;
   const selected = slide?.elements.find((e) => e.id === selectedId) ?? null;
 
-  const mutateSlide = useCallback((fn: (els: DeckElement[]) => DeckElement[]) => {
+  const mutateSlide = useCallback((fn: (els: SlideElement[]) => SlideElement[]) => {
     setDeck((prev) => {
       if (!prev) return prev;
       const slides = prev.slides.map((s, i) =>
@@ -58,7 +58,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
     mutateSlide((els) => els.map((e) => (e.id === id ? { ...e, box, source: "user" as const } : e)));
   }, [mutateSlide]);
 
-  const updateSelected = useCallback((patch: Partial<DeckElement>) => {
+  const updateSelected = useCallback((patch: Partial<SlideElement>) => {
     if (!selectedId) return;
     mutateSlide((els) => els.map((e) => (e.id === selectedId ? { ...e, ...patch, source: "user" as const } : e)));
   }, [mutateSlide, selectedId]);
