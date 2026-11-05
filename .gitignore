@@ -13,3 +13,4 @@ apps/web/out/
 .shots/
 .DS_Store
 Thumbs.db
+.vercel

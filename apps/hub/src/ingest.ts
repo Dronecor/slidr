@@ -28,7 +28,7 @@ async function defaultConvert(inputPath: string, outDir: string): Promise<string
 async function defaultRender(pdfPath: string, outDir: string): Promise<string[]> {
   await mkdir(outDir, { recursive: true });
   try {
-    await exec("pdftoppm", ["-png", "-r", "150", pdfPath, path.join(outDir, "slide")], { timeout: 120_000 });
+    await exec("pdftoppm", ["-png", "-scale-to-x", "1920", "-scale-to-y", "-1", pdfPath, path.join(outDir, "slide")], { timeout: 600_000, maxBuffer: 10_000_000 });
     const { readdir } = await import("node:fs/promises");
     return (await readdir(outDir)).filter((f) => f.endsWith(".png")).sort().map((f) => path.join(outDir, f));
   } catch {
